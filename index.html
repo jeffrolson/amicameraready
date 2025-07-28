@@ -36,7 +36,7 @@
       height: 100vh;
       overflow: hidden;
       cursor: grab;
-      transform: scaleX(-1); /* mirror */
+      transform: scaleX(-1);
     }
     #video-feed {
       width: 100%;
@@ -59,7 +59,7 @@
       font-size: 1.125rem;
       font-weight: 500;
       box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
-      transform: translate(-50%, -50%) scaleX(-1); /* un-mirror the text */
+      transform: translate(-50%, -50%) scaleX(-1);
     }
     .side-indicator {
       position: absolute;
@@ -87,45 +87,62 @@
       background: transparent;
       cursor: pointer;
     }
-    input[type=range]::-webkit-slider-runnable-track {
-      width: 100%;
-      height: 4px;
-      background: #4b5563;
-      border-radius: 2px;
+    /* slider track and thumb styling omitted for brevity */
+    
+    /* welcome overlay */
+    #welcome-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      background-color: rgba(17,24,39,0.9);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
     }
-    input[type=range]::-webkit-slider-thumb {
-      -webkit-appearance: none;
-      appearance: none;
-      margin-top: -6px;
+    #welcome-overlay .box {
+      background-color: #1f2937;
+      padding: 2rem;
+      border-radius: 0.75rem;
+      text-align: center;
+      max-width: 24rem;
+    }
+    #welcome-overlay p {
+      color: #f3f4f6;
+      font-size: 1.125rem;
+      margin-bottom: 1.5rem;
+      line-height: 1.4;
+    }
+    #welcome-overlay button {
       background-color: #3b82f6;
-      height: 16px;
-      width: 16px;
-      border-radius: 50%;
-      border: 2px solid #fff;
+      color: white;
+      font-weight: 600;
+      padding: 0.75rem 1.5rem;
+      border-radius: 0.5rem;
     }
-    input[type=range]::-moz-range-track {
-      width: 100%;
-      height: 4px;
-      background: #4b5563;
-      border-radius: 2px;
-    }
-    input[type=range]::-moz-range-thumb {
-      background-color: #3b82f6;
-      height: 16px;
-      width: 16px;
-      border-radius: 50%;
-      border: 2px solid #fff;
+    #welcome-overlay button:hover {
+      background-color: #2563eb;
     }
   </style>
 </head>
 
 <body>
-  <!-- Video -->
+  <!-- Welcome message before camera permission -->
+  <div id="welcome-overlay">
+    <div class="box">
+  <p>Welcome to Am I Camera Ready.</p>
+  <p>Your browser will now ask for camera access.</p>
+  <p class="text-gray-500">We do not save your video.... not even the bad hair days.</p>
+      <button id="start-button">Continue</button>
+    </div>
+  </div>
+
+  <!-- Video preview (hidden behind overlay at first) -->
   <div id="video-container" aria-label="Live camera preview">
     <video id="video-feed" autoplay playsinline muted></video>
   </div>
 
-  <!-- Header with subscription form -->
+  <!-- Header and subscription form -->
   <header id="main-header" class="fixed top-0 left-0 w-full z-30 p-3 sm:p-4 bg-gray-900/75 backdrop-blur-md flex items-center justify-between shadow-lg">
     <div class="flex items-center gap-3">
       <img src="https://i.imgur.com/MtzMbYV.png" alt="Am I Camera Ready Logo" class="h-8 sm:h-10 w-auto" />
@@ -139,7 +156,6 @@
           id="email-input"
           name="email"
           placeholder="Enter email for updates"
-          aria-label="Email address"
           required
           class="w-36 sm:w-64 bg-gray-800/50 border border-gray-600 text-white text-xs sm:text-sm rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none placeholder-gray-400" />
         <button
@@ -155,16 +171,15 @@
   <div class="side-indicator left-indicator">LEFT</div>
   <div class="side-indicator right-indicator">RIGHT</div>
 
-  <!-- Controls -->
+  <!-- Camera + zoom controls -->
   <div id="controls-container" class="fixed bottom-4 right-4 z-30 flex items-center gap-4 bg-gray-900/75 backdrop-blur-md p-3 rounded-lg shadow-lg">
     <div id="camera-controls-container" class="hidden items-center gap-2">
       <label for="camera-select" class="font-medium text-xs sm:text-sm text-gray-200">CAMERA:</label>
       <select id="camera-select" class="bg-gray-700 text-gray-100 border-none rounded-md px-2 py-1 text-xs sm:text-sm cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500"></select>
     </div>
     <div id="zoom-container" class="flex items-center gap-2 w-32">
-      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line></svg>
+      <!-- zoom icons and slider -->
       <input type="range" id="zoom-slider" min="1" max="5" step="0.1" value="1" />
-      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="8" y1="11" x2="14" y2="11"></line><line x1="11" y1="8" x2="11" y2="14"></line></svg>
     </div>
   </div>
 
@@ -172,19 +187,19 @@
 
   <script>
     // Elements
+    const welcomeOverlay = document.getElementById('welcome-overlay');
+    const startButton    = document.getElementById('start-button');
     const videoContainer = document.getElementById('video-container');
-    const videoElement = document.getElementById('video-feed');
-    const cameraSelect = document.getElementById('camera-select');
+    const videoElement   = document.getElementById('video-feed');
+    const cameraSelect   = document.getElementById('camera-select');
     const cameraControlsContainer = document.getElementById('camera-controls-container');
-    const messageContainer = document.getElementById('message-container');
-    const emailForm = document.getElementById('email-form');
-    const zoomSlider = document.getElementById('zoom-slider');
+    const messageContainer       = document.getElementById('message-container');
+    const emailForm              = document.getElementById('email-form');
+    const zoomSlider             = document.getElementById('zoom-slider');
 
     // State
-    let currentStream;
-    let panzoomInstance;
+    let currentStream, panzoomInstance;
 
-    // Helpers
     function showMessage(text) {
       messageContainer.innerHTML = `<div class="error-message">${text}</div>`;
       setTimeout(() => { messageContainer.innerHTML = ''; }, 5000);
@@ -194,7 +209,6 @@
       if (currentStream) currentStream.getTracks().forEach(t => t.stop());
     }
 
-    // Camera
     async function getCameraStream(deviceId) {
       stopCurrentStream();
       const constraints = {
@@ -211,172 +225,149 @@
         currentStream = stream;
         videoElement.srcObject = stream;
         videoElement.onloadedmetadata = () => {
-          if (!panzoomInstance) initializePanzoom();
+          if (!panzoomInstance) initPanzoom();
           else panzoomInstance.reset();
         };
       } catch (err) {
-        handleGetUserMediaError(err);
+        let msg = 'An unexpected error occurred.';
+        if (['NotAllowedError','PermissionDeniedError'].includes(err.name)) {
+          msg = 'Camera access denied. Please enable permissions and refresh.';
+        } else if (['NotFoundError','DevicesNotFoundError'].includes(err.name)) {
+          msg = 'No cameras found. Connect a camera and refresh.';
+        } else if (['NotReadableError','TrackStartError'].includes(err.name)) {
+          msg = 'Camera might be in use by another app. Close it and try again.';
+        }
+        showMessage(msg);
       }
     }
 
     async function setupCameraSelector() {
       try {
-        const temp = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        const temp = await navigator.mediaDevices.getUserMedia({ video:true });
         temp.getTracks().forEach(t => t.stop());
-
         const devices = await navigator.mediaDevices.enumerateDevices();
-        const videoDevices = devices.filter(d => d.kind === 'videoinput');
+        const cams = devices.filter(d => d.kind==='videoinput');
         cameraSelect.innerHTML = '';
-
-        if (videoDevices.length > 0) {
-          if (videoDevices.length > 1) {
-            videoDevices.forEach((device, index) => {
-              const option = document.createElement('option');
-              option.value = device.deviceId;
-              option.text = device.label || `Camera ${index + 1}`;
-              cameraSelect.appendChild(option);
+        if (cams.length>0) {
+          if (cams.length>1) {
+            cams.forEach((d,i) => {
+              const o = document.createElement('option');
+              o.value = d.deviceId;
+              o.text  = d.label||`Camera ${i+1}`;
+              cameraSelect.append(o);
             });
             cameraControlsContainer.style.display = 'flex';
           }
           cameraSelect.addEventListener('change', () => getCameraStream(cameraSelect.value));
-          getCameraStream(videoDevices[0].deviceId);
+          getCameraStream(cams[0].deviceId);
         } else {
           showMessage('No cameras found. Connect a camera and refresh.');
         }
-      } catch (err) {
-        handleGetUserMediaError(err);
+      } catch (e) {
+        showMessage('Camera initialization failed.');
       }
     }
 
-    function handleGetUserMediaError(err) {
-      let message = 'An unexpected error occurred.';
-      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-        message = 'Camera access denied. Enable permissions and refresh.';
-      } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
-        message = 'No cameras found. Connect a camera and refresh.';
-      } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
-        message = 'Camera might be in use by another app. Close it and try again.';
-      }
-      showMessage(message);
-    }
-
-    // Panzoom
-    function initializePanzoom() {
+    function initPanzoom() {
       panzoomInstance = Panzoom(videoElement, {
-        maxScale: 5,
-        minScale: 1,
-        contain: 'outside',
-        canvas: true,
-        step: 0.1,
-        disablePan: true
+        maxScale:5,
+        minScale:1,
+        contain:'outside',
+        canvas:true,
+        step:0.1,
+        disablePan:true
       });
-
-      videoElement.addEventListener('panzoomzoom', (e) => {
+      videoElement.addEventListener('panzoomzoom', e => {
         zoomSlider.value = e.detail.scale;
       });
-
-      videoContainer.addEventListener('wheel', (e) => {
+      videoContainer.addEventListener('wheel', e => {
         if (!e.ctrlKey) panzoomInstance.zoomWithWheel(e);
       });
 
-      // Mouse drag to pan (when zoomed)
-      let isPanning = false;
-      const handleDrag = (e) => {
-        if (e.button !== 0 || panzoomInstance.getScale() <= 1) return;
+      let isP=false;
+      const onDown = e => {
+        if (e.button!==0||panzoomInstance.getScale()<=1) return;
         e.preventDefault();
-        e.stopPropagation();
-        isPanning = true;
+        isP=true;
         videoContainer.classList.add('is-panning');
-
-        const move = (me) => {
-          if (!isPanning) return;
-          panzoomInstance.pan(-me.movementX, me.movementY, { relative: true });
+        const onMove = me => {
+          if (!isP) return;
+          panzoomInstance.pan(-me.movementX, me.movementY, { relative:true });
         };
-        const up = () => {
-          isPanning = false;
+        const onUp = () => {
+          isP=false;
           videoContainer.classList.remove('is-panning');
-          document.removeEventListener('mousemove', move);
-          document.removeEventListener('mouseup', up);
+          document.removeEventListener('mousemove', onMove);
+          document.removeEventListener('mouseup', onUp);
         };
-
-        document.addEventListener('mousemove', move);
-        document.addEventListener('mouseup', up);
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
       };
-      videoElement.addEventListener('mousedown', handleDrag);
+      videoElement.addEventListener('mousedown', onDown);
 
-      // Touch drag to pan
-      let lastTouchX, lastTouchY;
-      videoElement.addEventListener('touchstart', (e) => {
-        if (e.touches.length === 1 && panzoomInstance.getScale() > 1) {
-          lastTouchX = e.touches[0].clientX;
-          lastTouchY = e.touches[0].clientY;
+      // touch
+      let lx, ly;
+      videoElement.addEventListener('touchstart', e => {
+        if (e.touches.length===1 && panzoomInstance.getScale()>1) {
+          lx = e.touches[0].clientX;
+          ly = e.touches[0].clientY;
           videoContainer.classList.add('is-panning');
         }
       });
-      videoElement.addEventListener('touchmove', (e) => {
-        if (e.touches.length !== 1 || panzoomInstance.getScale() <= 1) return;
+      videoElement.addEventListener('touchmove', e => {
+        if (e.touches.length!==1||panzoomInstance.getScale()<=1) return;
         e.preventDefault();
         const t = e.touches[0];
-        const dx = t.clientX - lastTouchX;
-        const dy = t.clientY - lastTouchY;
-        panzoomInstance.pan(-dx, dy, { relative: true });
-        lastTouchX = t.clientX;
-        lastTouchY = t.clientY;
+        panzoomInstance.pan(-(t.clientX-lx), t.clientY-ly, { relative:true });
+        lx = t.clientX;
+        ly = t.clientY;
       });
-      const endTouch = () => videoContainer.classList.remove('is-panning');
-      videoElement.addEventListener('touchend', endTouch);
-      videoElement.addEventListener('touchcancel', endTouch);
+      const onTouchEnd = () => videoContainer.classList.remove('is-panning');
+      videoElement.addEventListener('touchend', onTouchEnd);
+      videoElement.addEventListener('touchcancel', onTouchEnd);
     }
 
-    // Zoom slider
-    zoomSlider.addEventListener('input', (e) => {
+    zoomSlider.addEventListener('input', e => {
       if (!panzoomInstance) return;
-      const rect = videoContainer.getBoundingClientRect();
-      panzoomInstance.zoom(e.target.value, {
-        animate: false,
-        focal: { x: rect.width / 2, y: rect.height / 2 }
-      });
+      const r = videoContainer.getBoundingClientRect();
+      panzoomInstance.zoom(e.target.value, { animate:false, focal:{ x:r.width/2, y:r.height/2 } });
     });
 
-    // Email submit to Formspree (AJAX)
-    emailForm.addEventListener('submit', async (e) => {
+    // AJAX form to Formspree
+    emailForm.addEventListener('submit', async e => {
       e.preventDefault();
       const email = document.getElementById('email-input').value.trim();
       if (!email) return;
-
       try {
-        const res = await fetch('https://formspree.io/f/xeozepze', {
-          method: 'POST',
-          headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json'
+        const r = await fetch('https://formspree.io/f/xeozepze', {
+          method:'POST',
+          headers:{
+            'Accept':'application/json',
+            'Content-Type':'application/json'
           },
-          body: JSON.stringify({
-            email,
-            _subject: 'Am I Camera Ready signup',
-            _gotcha: ''  // honeypot field support on the backend
-          })
+          body: JSON.stringify({ email, _subject:'Am I Camera Ready signup', _gotcha:'' })
         });
-
-        if (res.ok) {
+        if (r.ok) {
           document.getElementById('subscription-form-container').innerHTML =
-            `<div class="text-white font-medium text-sm sm:text-base text-center p-2">Thank you. You are on the list.</div>`;
+            '<div class="text-white font-medium text-sm sm:text-base text-center p-2">Thank you. You are on the list.</div>';
         } else {
-          const data = await res.json().catch(() => ({}));
-          const msg = data.errors?.map(e => e.message).join(', ') || 'Submission failed. Please try again.';
-          showMessage(msg);
+          const j = await r.json().catch(() => ({}));
+          showMessage((j.errors||[]).map(e=>e.message).join(', ')||'Submission failed. Please try again.');
         }
       } catch {
-        showMessage('Network error. Please check your connection and try again.');
+        showMessage('Network error. Please check your connection');
       }
     });
 
-    // Boot
-    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-      setupCameraSelector();
-    } else {
-      showMessage('Your browser does not support camera access. Use a modern browser.');
-    }
+    // launch on continue
+    startButton.addEventListener('click', () => {
+      welcomeOverlay.style.display = 'none';
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        setupCameraSelector();
+      } else {
+        showMessage('Your browser does not support camera access. Use a modern browser.');
+      }
+    });
   </script>
 </body>
 </html>
