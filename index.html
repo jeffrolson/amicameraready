@@ -1,372 +1,306 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
   <title>Am I Camera Ready?</title>
-
-  <!-- Tailwind -->
+  <meta name="description" content="Preview your on-camera look and background. No recording. Runs in your browser." />
   <script src="https://cdn.tailwindcss.com"></script>
-
-  <!-- Fonts -->
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet" />
-
-  <!-- Panzoom -->
-  <script src="https://unpkg.com/@panzoom/panzoom@4.5.1/dist/panzoom.min.js"></script>
-
-  <!-- Google Analytics -->
-  <script async src="https://www.googletagmanager.com/gtag/js?id=G-T0MQT54L6P"></script>
-  <script>
-    window.dataLayer = window.dataLayer || [];
-    function gtag(){ dataLayer.push(arguments); }
-    gtag('js', new Date());
-    gtag('config', 'G-T0MQT54L6P');
-  </script>
-
   <style>
-    :root { color-scheme: dark; }
-    body {
-      font-family: 'Inter', sans-serif;
-      background-color: #111827;
-      color: #f3f4f6;
-      overflow: hidden;
+    @media (prefers-reduced-motion: no-preference) {
+      .fade-up { opacity: 0; transform: translateY(6px); animation: fadeUp .5s ease-out forwards; }
+      @keyframes fadeUp { to { opacity: 1; transform: translateY(0); } }
+      .floaty { animation: floaty 6s ease-in-out infinite; }
+      @keyframes floaty { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+      .shine { background-size: 200% 100%; animation: shine 3s linear infinite; }
+      @keyframes shine { to { background-position: -200% 0; } }
     }
-    #video-container {
-      width: 100vw;
-      height: 100vh;
-      overflow: hidden;
-      cursor: grab;
-      transform: scaleX(-1);
-    }
-    #video-feed {
-      width: 100%;
-      height: 100%;
-      object-fit: contain;
-      transform-origin: 50% 50%;
-    }
-    #video-container.is-panning { cursor: grabbing; }
-
-    .error-message {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      z-index: 50;
-      background-color: #fee2e2;
-      color: #b91c1c;
-      padding: 2rem;
-      border-radius: 1rem;
-      text-align: center;
-      font-size: 1.125rem;
-      font-weight: 500;
-      box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
-      transform: translate(-50%, -50%) scaleX(-1);
-    }
-    .side-indicator {
-      position: absolute;
-      top: 50%;
-      transform: translateY(-50%);
-      z-index: 20;
-      background-color: rgba(17,24,39,0.5);
-      color: rgba(243,244,246,0.85);
-      border: 1px solid rgba(75,85,99,0.7);
-      padding: 0.5rem 1rem;
-      border-radius: 0.5rem;
-      font-weight: 700;
-      font-size: 1rem;
-      letter-spacing: 0.1em;
-      backdrop-filter: blur(5px);
+    .mirror { transform: scaleX(-1); }
+    .video-scale { transform-origin: center center; will-change: transform; transition: transform .15s ease; }
+    .stage-height { height: min(78vh, calc(100vh - 12rem)); }
+    .grid-overlay {
       pointer-events: none;
+      background-image:
+        linear-gradient(to right, rgba(255,255,255,.10) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255,255,255,.10) 1px, transparent 1px);
+      background-size: calc(100% / 3) 100%, 100% calc(100% / 3);
     }
-    .left-indicator { left: 1.5rem; }
-    .right-indicator { right: 1.5rem; }
-
-    input[type=range] {
-      -webkit-appearance: none;
-      appearance: none;
-      width: 100%;
-      background: transparent;
-      cursor: pointer;
-    }
-    /* slider track and thumb styling omitted for brevity */
-    
-    /* welcome overlay */
-    #welcome-overlay {
-      position: fixed;
-      inset: 0;
-      z-index: 100;
-      background-color: rgba(17,24,39,0.9);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 1rem;
-    }
-    #welcome-overlay .box {
-      background-color: #1f2937;
-      padding: 2rem;
-      border-radius: 0.75rem;
-      text-align: center;
-      max-width: 24rem;
-    }
-    #welcome-overlay p {
-      color: #f3f4f6;
-      font-size: 1.125rem;
-      margin-bottom: 1.5rem;
-      line-height: 1.4;
-    }
-    #welcome-overlay button {
-      background-color: #3b82f6;
-      color: white;
-      font-weight: 600;
-      padding: 0.75rem 1.5rem;
-      border-radius: 0.5rem;
-    }
-    #welcome-overlay button:hover {
-      background-color: #2563eb;
-    }
+    .side-marker { transition: opacity .3s ease; }
+    .side-marker.hidden-soft { opacity: 0; pointer-events: none; }
   </style>
 </head>
-
-<body>
-  <!-- Welcome message before camera permission -->
-  <div id="welcome-overlay">
-    <div class="box">
-  <p>Welcome to Am I Camera Ready.</p>
-  <p>Your browser will now ask for camera access.</p>
-  <p class="text-gray-500">We do not save your video.... not even the bad hair days.</p>
-      <button id="start-button">Continue</button>
-    </div>
+<body class="bg-slate-900 text-white antialiased">
+  <div class="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
+    <div class="absolute -top-10 -left-10 h-56 w-56 bg-indigo-500/20 rounded-full blur-3xl floaty"></div>
+    <div class="absolute -bottom-16 -right-10 h-72 w-72 bg-sky-400/20 rounded-full blur-3xl floaty" style="animation-delay:1.2s"></div>
   </div>
 
-  <!-- Video preview (hidden behind overlay at first) -->
-  <div id="video-container" aria-label="Live camera preview">
-    <video id="video-feed" autoplay playsinline muted></video>
-  </div>
-
-  <!-- Header and subscription form -->
-  <header id="main-header" class="fixed top-0 left-0 w-full z-30 p-3 sm:p-4 bg-gray-900/75 backdrop-blur-md flex items-center justify-between shadow-lg">
+  <!-- Header -->
+  <header class="px-4 md:px-8 py-5 flex items-center justify-between">
     <div class="flex items-center gap-3">
-      <img src="https://i.imgur.com/MtzMbYV.png" alt="Am I Camera Ready Logo" class="h-8 sm:h-10 w-auto" />
-      <h1 class="text-lg sm:text-xl font-bold text-white hidden md:block">Am I Camera Ready?</h1>
+      <img src="./assets/logo.png" alt="Am I Camera Ready logo" class="h-10 w-auto select-none" />
+      <span class="sr-only">Am I Camera Ready</span>
     </div>
-
-    <div id="subscription-form-container">
-      <form id="email-form" class="flex items-center gap-2" novalidate>
-        <input
-          type="email"
-          id="email-input"
-          name="email"
-          placeholder="Enter email for updates"
-          required
-          class="w-36 sm:w-64 bg-gray-800/50 border border-gray-600 text-white text-xs sm:text-sm rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none placeholder-gray-400" />
-        <button
-          type="submit"
-          class="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs sm:text-sm py-2 px-3 sm:px-4 rounded-md transition-colors">
-          Stay Updated
-        </button>
-      </form>
+    <div class="text-right">
+      <h2 class="text-2xl font-semibold leading-tight">Preview</h2>
+      <p class="text-slate-300 text-sm">Check lighting, framing, and background. Use grid and reverse controls.</p>
+    </div>
+    <div class="flex items-center gap-3">
+      <button id="toggleReverse" class="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 ring-1 ring-white/10">Reverse</button>
+      <button id="toggleGrid" class="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 ring-1 ring-white/10">Grid</button>
+      <button id="stopBtn" class="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 ring-1 ring-white/10">Stop</button>
     </div>
   </header>
 
-  <!-- Left / Right markers -->
-  <div class="side-indicator left-indicator">LEFT</div>
-  <div class="side-indicator right-indicator">RIGHT</div>
-
-  <!-- Camera + zoom controls -->
-  <div id="controls-container" class="fixed bottom-4 right-4 z-30 flex items-center gap-4 bg-gray-900/75 backdrop-blur-md p-3 rounded-lg shadow-lg">
-    <div id="camera-controls-container" class="hidden items-center gap-2">
-      <label for="camera-select" class="font-medium text-xs sm:text-sm text-gray-200">CAMERA:</label>
-      <select id="camera-select" class="bg-gray-700 text-gray-100 border-none rounded-md px-2 py-1 text-xs sm:text-sm cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500"></select>
+  <!-- Intro -->
+  <section id="introSection" class="min-h-[40vh] flex items-center justify-center p-6">
+    <div class="relative p-[2px] rounded-3xl bg-gradient-to-tr from-indigo-500 via-sky-500 to-cyan-400 shadow-2xl">
+      <div class="rounded-3xl bg-slate-800/80 backdrop-blur-xl px-8 py-10 sm:px-10 sm:py-12 text-center ring-1 ring-white/10 max-w-xl">
+        <div class="mx-auto mb-5 h-12 w-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-sky-500 flex items-center justify-center shadow-lg">
+          <svg width="26" height="26" viewBox="0 0 24 24" class="text-white"><path fill="currentColor" d="M20 5h-3.2l-1.2-1.6A2 2 0 0 0 13.6 2h-3.2a2 2 0 0 0-2 1.4L7.2 5H4a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2Zm-8 13a5 5 0 1 1 0-10a5 5 0 0 1 0 10Zm0-2.5a2.5 2.5 0 1 0 0-5a2.5 2.5 0 0 0 0 5Z"/></svg>
+        </div>
+        <h1 class="text-2xl sm:text-3xl font-semibold tracking-tight text-white mb-3">Welcome to Am I Camera Ready</h1>
+        <p id="introLines" class="text-lg sm:text-xl leading-relaxed text-slate-200 whitespace-pre-line mb-2"></p>
+        <div class="mt-2 inline-flex items-center gap-2 text-sm text-slate-400">
+          <svg width="18" height="18" viewBox="0 0 24 24" class="text-slate-300"><path fill="currentColor" d="M12 2l7 3v6c0 5-3.5 9.74-7 11c-3.5-1.26-7-6-7-11V5l7-3Z"/></svg>
+          No recording. Runs in your browser.
+        </div>
+        <div class="mt-8">
+          <button id="continueBtn" class="px-6 py-3 text-base sm:text-lg font-semibold text-white rounded-xl bg-gradient-to-r from-indigo-500 via-sky-500 to-cyan-500 shine shadow-lg hover:shadow-xl active:scale-[0.98] transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300">Continue</button>
+        </div>
+        <p id="introError" class="mt-4 text-sm text-rose-300 hidden"></p>
+      </div>
     </div>
-    <div id="zoom-container" class="flex items-center gap-2 w-32">
-      <!-- zoom icons and slider -->
-      <input type="range" id="zoom-slider" min="1" max="5" step="0.1" value="1" />
-    </div>
-  </div>
+  </section>
 
-  <div id="message-container"></div>
+  <!-- Full-bleed video stage -->
+  <section id="stageSection" class="w-screen stage-height relative select-none">
+    <div id="stage" class="absolute inset-0">
+      <div id="videoInner" class="video-scale absolute inset-0">
+        <video id="video" playsinline autoplay muted class="w-full h-full object-cover"></video>
+      </div>
+
+      <!-- Grid -->
+      <div id="grid" class="absolute inset-0 opacity-0 transition-opacity grid-overlay"></div>
+
+      <!-- Side markers: small badges on the edges -->
+      <span id="labelLeft"
+        class="side-marker hidden-soft absolute top-1/2 -translate-y-1/2 inline-flex items-center justify-center
+               px-3 py-1 rounded-lg bg-slate-900/45 text-white text-xs md:text-sm ring-1 ring-white/10 backdrop-blur"
+        style="left: 0.75rem;">
+        Left
+      </span>
+      <span id="labelRight"
+        class="side-marker hidden-soft absolute top-1/2 -translate-y-1/2 inline-flex items-center justify-center
+               px-3 py-1 rounded-lg bg-slate-900/45 text-white text-xs md:text-sm ring-1 ring-white/10 backdrop-blur"
+        style="right: 0.75rem;">
+        Right
+      </span>
+
+      <!-- Zoom controls -->
+      <div class="absolute bottom-4 right-4 flex gap-2">
+        <button id="zoomOut" aria-label="Zoom out" class="h-9 w-9 rounded-full bg-slate-900/50 ring-1 ring-white/10 hover:bg-slate-900/70">−</button>
+        <button id="zoomIn" aria-label="Zoom in" class="h-9 w-9 rounded-full bg-slate-900/50 ring-1 ring-white/10 hover:bg-slate-900/70">+</button>
+        <span id="zoomValue" class="self-center text-xs bg-slate-900/40 px-2 py-1 rounded ring-1 ring-white/10">1.00x</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Tips and footer (unchanged) -->
+  <section class="px-4 md:px-8 pt-4 pb-8">
+    <div class="rounded-3xl bg-slate-800/70 backdrop-blur ring-1 ring-white/10 p-4 md:p-6">
+      <div class="grid gap-3 sm:grid-cols-3">
+        <div class="rounded-xl bg-slate-900/60 p-4 ring-1 ring-white/10">
+          <p class="text-xs text-slate-400">Tip</p>
+          <p class="text-sm md:text-base">Raise your camera to eye level. Leave a little headroom. Center your eyes on the top grid line.</p>
+        </div>
+        <div class="rounded-xl bg-slate-900/60 p-4 ring-1 ring-white/10">
+          <p class="text-xs text-slate-400">Lighting</p>
+          <p class="text-sm md:text-base">Face your light source. Avoid strong backlight from a window behind you.</p>
+        </div>
+        <div class="rounded-xl bg-slate-900/60 p-4 ring-1 ring-white/10">
+          <p class="text-xs text-slate-400">Background</p>
+          <p class="text-sm md:text-base">Remove busy items. Contrast your outfit with the wall for a crisp outline.</p>
+        </div>
+      </div>
+    </div>
+    <footer class="mt-6 text-center text-slate-400 text-xs">
+      No data leaves your device. If you close the page or press Stop, the camera turns off.
+    </footer>
+  </section>
 
   <script>
+    // Intro copy
+    const introText = [
+      "We do not save your video, not even the bad hair days.",
+      "Your browser will now ask for camera access."
+    ];
+    (function renderIntro() {
+      const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const container = document.getElementById("introLines");
+      container.innerHTML = introText.map((t, i) =>
+        `<span class="block ${prefersReduced ? '' : 'fade-up'}" style="animation-delay:${i * 120}ms">${t}</span>`
+      ).join("");
+    })();
+
     // Elements
-    const welcomeOverlay = document.getElementById('welcome-overlay');
-    const startButton    = document.getElementById('start-button');
-    const videoContainer = document.getElementById('video-container');
-    const videoElement   = document.getElementById('video-feed');
-    const cameraSelect   = document.getElementById('camera-select');
-    const cameraControlsContainer = document.getElementById('camera-controls-container');
-    const messageContainer       = document.getElementById('message-container');
-    const emailForm              = document.getElementById('email-form');
-    const zoomSlider             = document.getElementById('zoom-slider');
+    const continueBtn = document.getElementById("continueBtn");
+    const introError = document.getElementById("introError");
+    const introSection = document.getElementById("introSection");
+    const videoEl = document.getElementById("video");
+    const videoInner = document.getElementById("videoInner");
+    const gridEl = document.getElementById("grid");
+    const toggleReverseBtn = document.getElementById("toggleReverse");
+    const toggleGridBtn = document.getElementById("toggleGrid");
+    const stopBtn = document.getElementById("stopBtn");
+    const zoomInBtn = document.getElementById("zoomIn");
+    const zoomOutBtn = document.getElementById("zoomOut");
+    const zoomValue = document.getElementById("zoomValue");
+    const labelLeft = document.getElementById("labelLeft");
+    const labelRight = document.getElementById("labelRight");
+    const stageSection = document.getElementById("stageSection");
 
-    // State
-    let currentStream, panzoomInstance;
+    let stream = null;
+    let mirrored = true;      // default to mirrored for user-facing cameras
+    let gridOn = false;
+    let zoom = 1;
+    let labelHideTimer = null;
 
-    function showMessage(text) {
-      messageContainer.innerHTML = `<div class="error-message">${text}</div>`;
-      setTimeout(() => { messageContainer.innerHTML = ''; }, 5000);
-    }
-
-    function stopCurrentStream() {
-      if (currentStream) currentStream.getTracks().forEach(t => t.stop());
-    }
-
-    async function getCameraStream(deviceId) {
-      stopCurrentStream();
-      const constraints = {
-        video: {
-          deviceId: deviceId ? { exact: deviceId } : undefined,
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-          frameRate: { ideal: 30 }
-        },
-        audio: false
-      };
+    async function startCamera() {
+      introError.classList.add("hidden");
       try {
-        const stream = await navigator.mediaDevices.getUserMedia(constraints);
-        currentStream = stream;
-        videoElement.srcObject = stream;
-        videoElement.onloadedmetadata = () => {
-          if (!panzoomInstance) initPanzoom();
-          else panzoomInstance.reset();
-        };
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
+        videoEl.srcObject = stream;
+        await videoEl.play();
+
+        introSection.classList.add("hidden");
+        document.getElementById("stageSection").classList.remove("hidden");
+
+        // Apply default mirror right away
+        videoEl.classList.toggle("mirror", mirrored);
+        toggleReverseBtn.classList.toggle("bg-slate-700", mirrored);
+        applyZoom();
+        updateSideLabels(true); // show on entry
       } catch (err) {
-        let msg = 'An unexpected error occurred.';
-        if (['NotAllowedError','PermissionDeniedError'].includes(err.name)) {
-          msg = 'Camera access denied. Please enable permissions and refresh.';
-        } else if (['NotFoundError','DevicesNotFoundError'].includes(err.name)) {
-          msg = 'No cameras found. Connect a camera and refresh.';
-        } else if (['NotReadableError','TrackStartError'].includes(err.name)) {
-          msg = 'Camera might be in use by another app. Close it and try again.';
-        }
-        showMessage(msg);
+        introError.textContent = "Unable to access the camera. Check site permissions in your browser settings.";
+        introError.classList.remove("hidden");
+        console.error(err);
       }
     }
 
-    async function setupCameraSelector() {
-      try {
-        const temp = await navigator.mediaDevices.getUserMedia({ video:true });
-        temp.getTracks().forEach(t => t.stop());
-        const devices = await navigator.mediaDevices.enumerateDevices();
-        const cams = devices.filter(d => d.kind==='videoinput');
-        cameraSelect.innerHTML = '';
-        if (cams.length>0) {
-          if (cams.length>1) {
-            cams.forEach((d,i) => {
-              const o = document.createElement('option');
-              o.value = d.deviceId;
-              o.text  = d.label||`Camera ${i+1}`;
-              cameraSelect.append(o);
-            });
-            cameraControlsContainer.style.display = 'flex';
-          }
-          cameraSelect.addEventListener('change', () => getCameraStream(cameraSelect.value));
-          getCameraStream(cams[0].deviceId);
-        } else {
-          showMessage('No cameras found. Connect a camera and refresh.');
-        }
-      } catch (e) {
-        showMessage('Camera initialization failed.');
+    function stopCamera() {
+      if (stream) {
+        stream.getTracks().forEach(t => t.stop());
+        stream = null;
       }
+      // Reset UI
+      gridOn = false;
+      gridEl.style.opacity = "0";
+      toggleGridBtn.classList.remove("bg-slate-700");
+
+      mirrored = true; // reset to mirrored
+      videoEl.classList.add("mirror");
+      toggleReverseBtn.classList.add("bg-slate-700");
+
+      hideSideLabels();
+      introSection.classList.remove("hidden");
     }
 
-    function initPanzoom() {
-      panzoomInstance = Panzoom(videoElement, {
-        maxScale:5,
-        minScale:1,
-        contain:'outside',
-        canvas:true,
-        step:0.1,
-        disablePan:true
-      });
-      videoElement.addEventListener('panzoomzoom', e => {
-        zoomSlider.value = e.detail.scale;
-      });
-      videoContainer.addEventListener('wheel', e => {
-        if (!e.ctrlKey) panzoomInstance.zoomWithWheel(e);
-      });
-
-      let isP=false;
-      const onDown = e => {
-        if (e.button!==0||panzoomInstance.getScale()<=1) return;
-        e.preventDefault();
-        isP=true;
-        videoContainer.classList.add('is-panning');
-        const onMove = me => {
-          if (!isP) return;
-          panzoomInstance.pan(-me.movementX, me.movementY, { relative:true });
-        };
-        const onUp = () => {
-          isP=false;
-          videoContainer.classList.remove('is-panning');
-          document.removeEventListener('mousemove', onMove);
-          document.removeEventListener('mouseup', onUp);
-        };
-        document.addEventListener('mousemove', onMove);
-        document.addEventListener('mouseup', onUp);
-      };
-      videoElement.addEventListener('mousedown', onDown);
-
-      // touch
-      let lx, ly;
-      videoElement.addEventListener('touchstart', e => {
-        if (e.touches.length===1 && panzoomInstance.getScale()>1) {
-          lx = e.touches[0].clientX;
-          ly = e.touches[0].clientY;
-          videoContainer.classList.add('is-panning');
-        }
-      });
-      videoElement.addEventListener('touchmove', e => {
-        if (e.touches.length!==1||panzoomInstance.getScale()<=1) return;
-        e.preventDefault();
-        const t = e.touches[0];
-        panzoomInstance.pan(-(t.clientX-lx), t.clientY-ly, { relative:true });
-        lx = t.clientX;
-        ly = t.clientY;
-      });
-      const onTouchEnd = () => videoContainer.classList.remove('is-panning');
-      videoElement.addEventListener('touchend', onTouchEnd);
-      videoElement.addEventListener('touchcancel', onTouchEnd);
+    // Zoom
+    function applyZoom() {
+      videoInner.style.transform = `scale(${zoom})`;
+      zoomValue.textContent = `${zoom.toFixed(2)}x`;
+    }
+    function setZoom(val) {
+      zoom = Math.min(3, Math.max(1, val));
+      applyZoom();
     }
 
-    zoomSlider.addEventListener('input', e => {
-      if (!panzoomInstance) return;
-      const r = videoContainer.getBoundingClientRect();
-      panzoomInstance.zoom(e.target.value, { animate:false, focal:{ x:r.width/2, y:r.height/2 } });
-    });
-
-    // AJAX form to Formspree
-    emailForm.addEventListener('submit', async e => {
-      e.preventDefault();
-      const email = document.getElementById('email-input').value.trim();
-      if (!email) return;
-      try {
-        const r = await fetch('https://formspree.io/f/xeozepze', {
-          method:'POST',
-          headers:{
-            'Accept':'application/json',
-            'Content-Type':'application/json'
-          },
-          body: JSON.stringify({ email, _subject:'Am I Camera Ready signup', _gotcha:'' })
-        });
-        if (r.ok) {
-          document.getElementById('subscription-form-container').innerHTML =
-            '<div class="text-white font-medium text-sm sm:text-base text-center p-2">Thank you. You are on the list.</div>';
-        } else {
-          const j = await r.json().catch(() => ({}));
-          showMessage((j.errors||[]).map(e=>e.message).join(', ')||'Submission failed. Please try again.');
-        }
-      } catch {
-        showMessage('Network error. Please check your connection');
-      }
-    });
-
-    // launch on continue
-    startButton.addEventListener('click', () => {
-      welcomeOverlay.style.display = 'none';
-      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-        setupCameraSelector();
+    // Side labels
+    function updateSideLabels(showNow = false) {
+      if (!mirrored) {
+        // True camera view. Real-world left appears on the right edge of the frame.
+        labelLeft.textContent = "Left";
+        labelRight.textContent = "Right";
+        labelLeft.style.left = "";
+        labelLeft.style.right = "0.75rem";
+        labelRight.style.right = "";
+        labelRight.style.left = "0.75rem";
       } else {
-        showMessage('Your browser does not support camera access. Use a modern browser.');
+        // Mirrored view. Viewer-left is on the left edge.
+        labelLeft.textContent = "Left";
+        labelRight.textContent = "Right";
+        labelLeft.style.right = "";
+        labelLeft.style.left = "0.75rem";
+        labelRight.style.left = "";
+        labelRight.style.right = "0.75rem";
       }
+      if (showNow) showSideLabelsTemporarily();
+    }
+    function showSideLabelsTemporarily() {
+      clearTimeout(labelHideTimer);
+      labelLeft.classList.remove("hidden-soft");
+      labelRight.classList.remove("hidden-soft");
+      labelHideTimer = setTimeout(hideSideLabels, 2200);
+    }
+    function hideSideLabels() {
+      labelLeft.classList.add("hidden-soft");
+      labelRight.classList.add("hidden-soft");
+    }
+
+    // Controls
+    toggleReverseBtn.addEventListener("click", () => {
+      mirrored = !mirrored;
+      videoEl.classList.toggle("mirror", mirrored);
+      toggleReverseBtn.classList.toggle("bg-slate-700", mirrored);
+      updateSideLabels(true);
+    });
+
+    toggleGridBtn.addEventListener("click", () => {
+      gridOn = !gridOn;
+      gridEl.style.opacity = gridOn ? "1" : "0";
+      toggleGridBtn.classList.toggle("bg-slate-700", gridOn);
+    });
+
+    zoomInBtn.addEventListener("click", () => setZoom(zoom + 0.1));
+    zoomOutBtn.addEventListener("click", () => setZoom(zoom - 0.1));
+
+    // Wheel zoom and pinch zoom
+    stageSection.addEventListener("wheel", e => {
+      e.preventDefault();
+      const delta = Math.sign(e.deltaY);
+      setZoom(zoom + (delta < 0 ? 0.08 : -0.08));
+    }, { passive: false });
+
+    let pinchStartDist = null;
+    let pinchStartZoom = 1;
+    stageSection.addEventListener("touchstart", e => {
+      if (e.touches.length === 2) {
+        const dx = e.touches[0].clientX - e.touches[1].clientX;
+        const dy = e.touches[0].clientY - e.touches[1].clientY;
+        pinchStartDist = Math.hypot(dx, dy);
+        pinchStartZoom = zoom;
+      }
+    }, { passive: true });
+    stageSection.addEventListener("touchmove", e => {
+      if (e.touches.length === 2 && pinchStartDist) {
+        e.preventDefault();
+        const dx = e.touches[0].clientX - e.touches[1].clientX;
+        const dy = e.touches[0].clientY - e.touches[1].clientY;
+        const dist = Math.hypot(dx, dy);
+        const scaleDelta = dist / pinchStartDist;
+        setZoom(pinchStartZoom * scaleDelta);
+      }
+    }, { passive: false });
+    stageSection.addEventListener("touchend", () => { pinchStartDist = null; }, { passive: true });
+
+    // Start and stop
+    continueBtn.addEventListener("click", startCamera);
+    stopBtn.addEventListener("click", stopCamera);
+
+    // Clean up
+    window.addEventListener("beforeunload", () => {
+      if (stream) stream.getTracks().forEach(t => t.stop());
     });
   </script>
 </body>
