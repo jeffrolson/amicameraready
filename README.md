@@ -1,46 +1,80 @@
 # Am I Camera Ready?
 
-Am I Camera Ready is a single-page web tool that helps you preview how you and your background will look on camera. It never saves or uploads your video; everything runs locally in the browser.
+Am I Camera Ready is a zero-install camera check that runs entirely in your browser. It helps you dial in framing, lighting, and
+background without ever uploading video to a server.
 
 ## Repository Layout
 
 ```
 .
-├── index.html   # All markup, styling helpers, and JavaScript behaviour
-└── README.md    # Project overview and onboarding guidance
+├── public/
+│   └── index.html   # Single-page interface, styling, and behaviour
+├── worker.js        # Cloudflare Worker entry that serves the static assets
+├── wrangler.toml    # Worker configuration and asset binding
+└── README.md        # Project overview and deployment guidance
 ```
 
-The application is intentionally lightweight. All of the UI and logic lives inside `index.html`, which uses Tailwind CSS via the CDN for styling and vanilla JavaScript for behaviour.
+## Front-end Experience
 
-## Application Flow (`index.html`)
+The refreshed interface layers soft gradients, frosted glass panels, and animated accents to feel modern while keeping the contro
+ls familiar. When you click **Open Camera Preview**, the stage now expands to a full-screen overlay that keeps the Reverse/Grid/S
+top controls floating at the top-right of the frame. The controls are semi-transparent with a subtle blur so they remain accessib
+le without obscuring your video.
 
-1. **Intro modal** – A welcoming screen that explains the privacy stance and asks the user to proceed. Pressing **Continue** triggers camera access via `navigator.mediaDevices.getUserMedia`.
-2. **Stage section** – Once permission is granted, the intro is hidden and the full-screen video stage becomes visible. The video element mirrors the camera feed by default and applies zoom transformations with smooth transitions.
-3. **Controls** – The header buttons let the user:
-   - **Reverse** the video (`mirror` CSS class) to mimic a mirror or show the true orientation.
-   - Toggle a rule-of-thirds **grid overlay** to help with framing.
-   - **Stop** the camera, which also resets the UI back to the intro state.
-4. **Zoom + labels** – Floating controls allow zooming between 1x and 3x. When you flip orientation the left/right labels briefly fade in so you can re-orient yourself.
-5. **Tips section** – Helpful reminders for positioning, lighting, and background readiness complete the page.
+### Interaction Flow
 
-## Important Implementation Details
+1. **Landing hero** – Introduces the tool, highlights privacy, and offers a single CTA to launch the preview.
+2. **Full-screen stage** – Upon granting camera access, the video stretches edge-to-edge, the grid toggle overlays the feed, and
+   zoom controls appear as a floating pill in the lower corner.
+3. **Orientation labels** – Left/Right markers fade in briefly whenever you flip the camera, helping you reorient quickly.
+4. **Tips grid** – Helpful reminders about framing, lighting, background, and audio remain visible beneath the hero for quick re
+ference.
 
-- **No external build step:** Everything runs as a static HTML file. You can open `index.html` in a browser or host it from any static server.
-- **Tailwind via CDN:** Styling depends on the Tailwind CDN script. If you need offline or production-grade hosting, consider replacing it with a compiled Tailwind bundle.
-- **Camera permissions:** All camera usage is wrapped in `startCamera()`/`stopCamera()` helpers that start and stop media tracks cleanly, including on page unload.
-- **Accessibility touches:** Buttons have labels (e.g., zoom controls use `aria-label`), and transitions respect `prefers-reduced-motion`.
+All controls are implemented with vanilla JavaScript and Tailwind CSS via CDN—there is no build step.
 
-## Getting Started
+## Cloudflare Worker Deployment
 
-1. Open `index.html` in a modern browser (Chrome, Edge, or Firefox). Safari works but may require HTTPS for camera permissions.
-2. Click **Continue** when prompted so the browser can access your webcam.
-3. Experiment with the reverse/grid/zoom controls to learn the interface.
+This repository is ready to run on Cloudflare Workers using [Workers static assets](https://developers.cloudflare.com/workers/
+frameworks/worker-sites/). The Worker simply proxies incoming requests to the bundled assets and adds caching hints for non-HTML
+files.
 
-## Next Steps to Explore
+### Prerequisites
 
-- **Modularization:** If the project grows, consider extracting the JavaScript into separate modules and adding a bundler (Vite, Parcel) for better structure.
-- **State persistence:** Remembering mirror/grid/zoom preferences in `localStorage` would improve user experience.
-- **Accessibility and i18n:** Add keyboard shortcuts, focus states, and support for multiple languages.
-- **Testing:** Introduce automated tests (e.g., Playwright) to verify that camera permissions, toggles, and zoom behave as expected.
-- **Design polish:** Swap in your own branding assets and experiment with Tailwind themes to match your organization.
+- A Cloudflare account with Workers enabled
+- [`wrangler`](https://developers.cloudflare.com/workers/wrangler/install-and-update/) CLI authenticated with your account
 
+### Local development
+
+```bash
+# Install dependencies for Wrangler if you haven't already
+npm install -g wrangler
+
+# Start a local preview of the Worker and static assets
+wrangler dev
+```
+
+The dev server proxies through the Worker so you can test the full-screen camera experience exactly as it will run in productio
+n. Camera access requires HTTPS or `localhost`, which Wrangler provides automatically.
+
+### Deploying
+
+```bash
+# Publish the Worker and static assets
+wrangler publish
+```
+
+Publishing uploads the contents of `public/` to Cloudflare's asset storage and deploys `worker.js`. Point your domain (e.g., `am
+icameraready.com`) to the created Worker route to complete the migration.
+
+## Manual Preview Without Wrangler
+
+If you only want to inspect the front-end locally without the Worker, open `public/index.html` in a modern browser. Browsers req
+uire HTTPS for camera access, so use Wrangler or another HTTPS dev server when testing webcam features.
+
+## Extending the Project
+
+- **Brand customization:** Swap the accent gradients and iconography by editing the inline CSS in `public/index.html`.
+- **Preference persistence:** Store mirror/grid/zoom values in `localStorage` so returning visitors keep their settings.
+- **Telemetry:** If you need analytics, add privacy-conscious tooling (Plausible, Cloudflare Analytics) directly in the Worker r
+esponse.
+- **Accessibility:** Layer in keyboard shortcuts and enhanced focus states for the floating controls.
