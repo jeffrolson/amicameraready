@@ -1,0 +1,7 @@
+name = "amicameraready"
+main = "worker.js"
+compatibility_date = "2024-05-06"
+
+[assets]
+binding = "ASSETS"
+directory = "./public"
