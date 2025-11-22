@@ -22,7 +22,7 @@ export default {
           prompt += " Give a fun, casual vibe check. How does the person come across? Friendly? Cool? Give a short, fun critique.";
         }
 
-        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${env.GEMINI_API_KEY}`;
+        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${env.GEMINI_API_KEY}`;
 
         const geminiResponse = await fetch(geminiUrl, {
           method: 'POST',
