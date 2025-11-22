@@ -303,7 +303,10 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ image, type })
             });
-            if (!res.ok) throw new Error('Analysis failed');
+            if (!res.ok) {
+                const errorText = await res.text();
+                throw new Error(errorText || 'Analysis failed');
+            }
             return await res.text();
         }
 
