@@ -243,12 +243,13 @@
             stepLoading.classList.remove('hidden');
 
             try {
-                const result = await sendToGemini(imageBase64, selectedType);
-                feedbackText.innerHTML = formatResult(result);
+                const resultJson = await sendToGemini(imageBase64, selectedType);
+                const data = JSON.parse(resultJson);
+                renderResults(data);
                 stepLoading.classList.add('hidden');
                 stepResults.classList.remove('hidden');
             } catch (err) {
-                feedbackText.textContent = "Error: " + err.message;
+                feedbackText.innerHTML = `<div class="text-red-400 p-4">Error: ${err.message}</div>`;
                 stepLoading.classList.add('hidden');
                 stepResults.classList.remove('hidden');
             }
@@ -260,7 +261,71 @@
             stepOptions.classList.remove('hidden');
             capturedImageEl.classList.add('hidden');
             videoEl.classList.remove('hidden');
+            // Clear annotations
+            document.querySelectorAll('.annotation-box').forEach(el => el.remove());
         });
+
+        // Rendering Logic
+        function renderResults(data) {
+            // 1. Render Text Feedback
+            let html = `
+        <div class="mb-6">
+          <p class="text-lg text-slate-200 mb-4">${data.summary}</p>
+          <div class="grid grid-cols-3 gap-2 mb-6">
+            <div class="bg-slate-800/50 p-3 rounded-lg text-center border border-white/5">
+              <div class="text-xs text-slate-400 uppercase tracking-wider">Pro</div>
+              <div class="text-xl font-bold ${getScoreColor(data.scores.professionalism)}">${data.scores.professionalism}/10</div>
+            </div>
+            <div class="bg-slate-800/50 p-3 rounded-lg text-center border border-white/5">
+              <div class="text-xs text-slate-400 uppercase tracking-wider">Light</div>
+              <div class="text-xl font-bold ${getScoreColor(data.scores.lighting)}">${data.scores.lighting}/10</div>
+            </div>
+            <div class="bg-slate-800/50 p-3 rounded-lg text-center border border-white/5">
+              <div class="text-xs text-slate-400 uppercase tracking-wider">Bg</div>
+              <div class="text-xl font-bold ${getScoreColor(data.scores.background)}">${data.scores.background}/10</div>
+            </div>
+          </div>
+          <h3 class="font-bold text-sky-300 mb-2">Top Tips</h3>
+          <ul class="space-y-2">
+            ${data.tips.map(tip => `<li class="flex gap-2 text-sm text-slate-300"><span class="text-sky-400">•</span> ${tip}</li>`).join('')}
+          </ul>
+        </div>
+      `;
+            feedbackText.innerHTML = html;
+
+            // 2. Render Annotations
+            const container = document.querySelector('.video-container');
+            // Clear old
+            document.querySelectorAll('.annotation-box').forEach(el => el.remove());
+
+            data.annotations.forEach(ann => {
+                if (!ann.box_2d) return;
+                const [ymin, xmin, ymax, xmax] = ann.box_2d;
+
+                const box = document.createElement('div');
+                box.className = 'annotation-box absolute border-2 border-white/80 shadow-[0_0_10px_rgba(0,0,0,0.5)] rounded-lg pointer-events-none opacity-0 transition-opacity duration-500';
+                box.style.top = `${ymin * 100}%`;
+                box.style.left = `${xmin * 100}%`;
+                box.style.height = `${(ymax - ymin) * 100}%`;
+                box.style.width = `${(xmax - xmin) * 100}%`;
+
+                const label = document.createElement('div');
+                label.className = 'absolute -top-8 left-1/2 -translate-x-1/2 bg-white text-slate-900 text-xs font-bold px-2 py-1 rounded shadow-lg whitespace-nowrap';
+                label.textContent = ann.text;
+
+                box.appendChild(label);
+                container.appendChild(box);
+
+                // Animate in
+                requestAnimationFrame(() => box.classList.remove('opacity-0'));
+            });
+        }
+
+        function getScoreColor(score) {
+            if (score >= 8) return 'text-emerald-400';
+            if (score >= 5) return 'text-yellow-400';
+            return 'text-rose-400';
+        }
 
         // Helpers
         function runCountdown() {

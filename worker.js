@@ -11,16 +11,26 @@ export default {
           return new Response('Gemini API Key not configured', { status: 500 });
         }
 
-        let prompt = "Analyze this image of a person on a video call.";
-        if (type === 'professional') {
-          prompt += " Focus on professional appearance, attire, and grooming. Give 3 concise, constructive tips to look more professional.";
-        } else if (type === 'lighting') {
-          prompt += " Focus strictly on lighting. Is it too dark? Too bright? Backlit? Give 3 specific tips to improve the lighting.";
-        } else if (type === 'background') {
-          prompt += " Focus on the background. Is it cluttered? Distracting? Give 3 tips to make the background better for a video call.";
-        } else if (type === 'casual') {
-          prompt += " Give a fun, casual vibe check. How does the person come across? Friendly? Cool? Give a short, fun critique.";
+        let prompt = `Analyze this image of a person on a video call. Return a JSON object with the following structure:
+        {
+          "summary": "A brief, overall summary of the appearance.",
+          "scores": {
+            "professionalism": 1-10,
+            "lighting": 1-10,
+            "background": 1-10
+          },
+          "annotations": [
+            {
+              "text": "Short, specific label for a visual issue (max 10 words)",
+              "box_2d": [ymin, xmin, ymax, xmax] // Normalized coordinates (0-1) of the issue area
+            }
+          ],
+          "tips": ["Actionable tip 1", "Actionable tip 2", "Actionable tip 3"]
         }
+        
+        Focus the analysis based on this context: ${type}.
+        For 'annotations', identify 3-5 key visual elements (good or bad) related to the critique type (e.g. bad lighting source, clutter, good smile, messy hair).
+        Ensure the 'box_2d' coordinates are accurate for the specific element.`;
 
         const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${env.GEMINI_API_KEY}`;
 
@@ -33,7 +43,10 @@ export default {
                 { text: prompt },
                 { inline_data: { mime_type: "image/jpeg", data: image } }
               ]
-            }]
+            }],
+            generationConfig: {
+              response_mime_type: "application/json"
+            }
           })
         });
 
