@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+    <title>AI Feedback - Am I Camera Ready?</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
+        rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { display: ['"Plus Jakarta Sans"', 'ui-sans-serif', 'system-ui'] },
+                    colors: { midnight: '#020617' },
+                },
+            },
+        };
+    </script>
+    <style>
+        :root {
+            color-scheme: dark;
+        }
+
+        body {
+            font-family: "Plus Jakarta Sans", ui-sans-serif, system-ui;
+            background: radial-gradient(circle at top left, rgba(14, 165, 233, 0.18), transparent 55%),
+                radial-gradient(circle at 80% 0%, rgba(124, 58, 237, 0.18), transparent 45%),
+                #020617;
+            min-height: 100vh;
+            color: white;
+        }
+
+        .video-container {
+            position: relative;
+            border-radius: 24px;
+            overflow: hidden;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: #000;
+            aspect-ratio: 16/9;
+        }
+
+        .video-container video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transform: scaleX(-1);
+        }
+
+        .option-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 1rem;
+            border-radius: 1rem;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.2s ease;
+        }
+
+        .option-btn:hover,
+        .option-btn.selected {
+            background: rgba(56, 189, 248, 0.1);
+            border-color: rgba(56, 189, 248, 0.5);
+            transform: translateY(-2px);
+        }
+
+        .option-btn.selected {
+            box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.5);
+        }
+
+        .countdown-overlay {
+            position: absolute;
+            inset: 0;
+            z-index: 20;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.3);
+            font-size: 8rem;
+            font-weight: 800;
+            color: white;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .flash-overlay {
+            position: absolute;
+            inset: 0;
+            z-index: 30;
+            background: white;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.5s ease-out;
+        }
+
+        .result-image {
+            width: 100%;
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+    </style>
+</head>
+
+<body class="p-6 md:p-12 flex flex-col items-center min-h-screen">
+
+    <header class="w-full max-w-5xl flex justify-between items-center mb-8">
+        <a href="/" class="flex items-center gap-3 text-slate-300 hover:text-white transition">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+                stroke="currentColor" class="w-6 h-6">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
+            </svg>
+            <span class="font-medium">Back to Home</span>
+        </a>
+        <h1 class="text-xl font-bold">AI Feedback Studio</h1>
+    </header>
+
+    <main class="w-full max-w-5xl grid md:grid-cols-[1.5fr_1fr] gap-8 items-start">
+
+        <!-- Left Column: Camera / Image -->
+        <div class="space-y-6">
+            <div class="video-container relative">
+                <video id="video" playsinline autoplay muted></video>
+                <img id="capturedImage" class="absolute inset-0 w-full h-full object-cover hidden" />
+                <div id="countdown" class="countdown-overlay">3</div>
+                <div id="flash" class="flash-overlay"></div>
+            </div>
+            <p class="text-center text-sm text-slate-400">Align yourself in the frame before analyzing.</p>
+        </div>
+
+        <!-- Right Column: Controls / Results -->
+        <div class="bg-slate-900/50 backdrop-blur-xl border border-white/10 rounded-3xl p-6 md:p-8 shadow-2xl">
+
+            <!-- Step 1: Options -->
+            <div id="stepOptions">
+                <h2 class="text-2xl font-bold mb-2">Choose Critique</h2>
+                <p class="text-slate-400 mb-6 text-sm">Select what you want the AI to analyze.</p>
+
+                <div class="grid grid-cols-2 gap-3 mb-8">
+                    <button class="option-btn selected" data-type="professional">
+                        <span class="text-2xl">👔</span>
+                        <span class="text-sm font-medium text-slate-200">Professional</span>
+                    </button>
+                    <button class="option-btn" data-type="lighting">
+                        <span class="text-2xl">💡</span>
+                        <span class="text-sm font-medium text-slate-200">Lighting</span>
+                    </button>
+                    <button class="option-btn" data-type="background">
+                        <span class="text-2xl">🖼️</span>
+                        <span class="text-sm font-medium text-slate-200">Background</span>
+                    </button>
+                    <button class="option-btn" data-type="casual">
+                        <span class="text-2xl">👋</span>
+                        <span class="text-sm font-medium text-slate-200">Casual</span>
+                    </button>
+                </div>
+
+                <button id="analyzeBtn"
+                    class="w-full py-4 rounded-xl bg-gradient-to-r from-sky-500 to-indigo-500 text-white font-bold text-lg shadow-lg hover:shadow-sky-500/25 transition transform hover:scale-[1.02]">
+                    Analyze My Look
+                </button>
+            </div>
+
+            <!-- Step 2: Loading -->
+            <div id="stepLoading" class="hidden text-center py-12">
+                <div
+                    class="animate-spin mx-auto mb-6 h-12 w-12 border-4 border-sky-500 border-t-transparent rounded-full">
+                </div>
+                <h3 class="text-xl font-bold mb-2">Analyzing...</h3>
+                <p class="text-slate-400 text-sm">Sending your snapshot to Gemini AI.</p>
+            </div>
+
+            <!-- Step 3: Results -->
+            <div id="stepResults" class="hidden">
+                <h2 class="text-2xl font-bold mb-4 text-sky-300">Feedback Results</h2>
+                <div id="feedbackText"
+                    class="bg-slate-800/50 rounded-xl p-4 text-slate-200 text-sm leading-relaxed border border-white/10 mb-6 max-h-[400px] overflow-y-auto">
+                </div>
+                <button id="retryBtn"
+                    class="w-full py-3 rounded-xl bg-slate-700 text-white font-medium hover:bg-slate-600 transition">
+                    Try Again
+                </button>
+            </div>
+
+        </div>
+    </main>
+
+    <script>
+        const videoEl = document.getElementById('video');
+        const capturedImageEl = document.getElementById('capturedImage');
+        const analyzeBtn = document.getElementById('analyzeBtn');
+        const retryBtn = document.getElementById('retryBtn');
+        const stepOptions = document.getElementById('stepOptions');
+        const stepLoading = document.getElementById('stepLoading');
+        const stepResults = document.getElementById('stepResults');
+        const feedbackText = document.getElementById('feedbackText');
+        const optionBtns = document.querySelectorAll('.option-btn');
+        const countdownEl = document.getElementById('countdown');
+        const flashEl = document.getElementById('flash');
+
+        let stream = null;
+        let selectedType = 'professional';
+
+        // Start Camera
+        async function initCamera() {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+                videoEl.srcObject = stream;
+            } catch (err) {
+                alert("Camera access denied. Please allow camera access to use this feature.");
+            }
+        }
+        initCamera();
+
+        // Option Selection
+        optionBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                optionBtns.forEach(b => b.classList.remove('selected'));
+                btn.classList.add('selected');
+                selectedType = btn.dataset.type;
+            });
+        });
+
+        // Analyze Flow
+        analyzeBtn.addEventListener('click', async () => {
+            await runCountdown();
+            const imageBase64 = captureFrame();
+
+            // Show captured image
+            capturedImageEl.src = "data:image/jpeg;base64," + imageBase64;
+            capturedImageEl.classList.remove('hidden');
+            videoEl.classList.add('hidden');
+            flashEffect();
+
+            // UI State -> Loading
+            stepOptions.classList.add('hidden');
+            stepLoading.classList.remove('hidden');
+
+            try {
+                const result = await sendToGemini(imageBase64, selectedType);
+                feedbackText.innerHTML = formatResult(result);
+                stepLoading.classList.add('hidden');
+                stepResults.classList.remove('hidden');
+            } catch (err) {
+                feedbackText.textContent = "Error: " + err.message;
+                stepLoading.classList.add('hidden');
+                stepResults.classList.remove('hidden');
+            }
+        });
+
+        // Retry
+        retryBtn.addEventListener('click', () => {
+            stepResults.classList.add('hidden');
+            stepOptions.classList.remove('hidden');
+            capturedImageEl.classList.add('hidden');
+            videoEl.classList.remove('hidden');
+        });
+
+        // Helpers
+        function runCountdown() {
+            return new Promise(resolve => {
+                let count = 3;
+                countdownEl.textContent = count;
+                countdownEl.style.opacity = '1';
+                const interval = setInterval(() => {
+                    count--;
+                    if (count > 0) countdownEl.textContent = count;
+                    else {
+                        clearInterval(interval);
+                        countdownEl.style.opacity = '0';
+                        resolve();
+                    }
+                }, 1000);
+            });
+        }
+
+        function flashEffect() {
+            flashEl.style.opacity = '0.8';
+            setTimeout(() => flashEl.style.opacity = '0', 150);
+        }
+
+        function captureFrame() {
+            const canvas = document.createElement('canvas');
+            canvas.width = videoEl.videoWidth;
+            canvas.height = videoEl.videoHeight;
+            const ctx = canvas.getContext('2d');
+            // Mirror flip for consistency with preview
+            ctx.translate(canvas.width, 0);
+            ctx.scale(-1, 1);
+            ctx.drawImage(videoEl, 0, 0);
+            return canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
+        }
+
+        async function sendToGemini(image, type) {
+            const res = await fetch('/api/analyze', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ image, type })
+            });
+            if (!res.ok) throw new Error('Analysis failed');
+            return await res.text();
+        }
+
+        function formatResult(text) {
+            return text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
+        }
+    </script>
+</body>
+
+</html>
