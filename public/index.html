@@ -178,7 +178,7 @@
     .modal-backdrop {
       position: fixed;
       inset: 0;
-      z-index: 50;
+      z-index: 60;
       background: rgba(2, 6, 23, 0.8);
       backdrop-filter: blur(8px);
       display: flex;
@@ -267,7 +267,7 @@
     <div class="absolute bottom-10 right-0 h-96 w-96 rounded-full bg-indigo-500/10 blur-3xl"></div>
   </div>
 
-  <header id="siteHeader" class="relative">
+  <header id="siteHeader" class="relative z-20">
     <div
       class="header-inner mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-6 py-6 transition-all duration-300">
       <div class="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-2 backdrop-blur">
@@ -475,6 +475,7 @@
         updateLabels(true);
       } catch (err) {
         console.error("Unable to access camera", err);
+        alert("Unable to access camera: " + err.message + "\n\nPlease ensure you have granted camera permissions and are using HTTPS or localhost.");
       }
     }
 
@@ -564,9 +565,13 @@
 
     // Feedback Logic
     feedbackBtn.addEventListener("click", async () => {
+      console.log("Feedback button clicked");
       if (!stream) {
         await startCamera();
-        if (!stream) return;
+        if (!stream) {
+          console.log("Camera start failed or cancelled");
+          return;
+        }
       }
       feedbackModal.classList.add("visible");
       resetFeedbackModal();
