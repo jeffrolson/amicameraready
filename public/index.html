@@ -87,6 +87,11 @@
       pointer-events: none;
     }
 
+    .controls-disabled #feedbackBtn {
+      pointer-events: auto;
+      opacity: 1;
+    }
+
     .video-scale {
       transform-origin: center center;
       transition: transform 0.18s ease;
@@ -558,7 +563,11 @@
     }, { passive: false });
 
     // Feedback Logic
-    feedbackBtn.addEventListener("click", () => {
+    feedbackBtn.addEventListener("click", async () => {
+      if (!stream) {
+        await startCamera();
+        if (!stream) return;
+      }
       feedbackModal.classList.add("visible");
       resetFeedbackModal();
     });
